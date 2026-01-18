@@ -19,20 +19,35 @@ th,td{border:1px solid #ccc;padding:6px}
 <nav>
 <button onclick="show('lager')">Lager</button>
 <button onclick="show('import')">Import</button>
+<button onclick="show('labels')">Labels</button>
 <button onclick="show('scan')">Scan</button>
 </nav>
 
 <section id="lager">
 <h2>Lager</h2>
 <table>
-<thead><tr><th>Navn</th><th>Type</th><th>Antal</th><th>+</th><th>-</th></tr></thead>
+<thead>
+<tr>
+<th>Navn</th>
+<th>Type</th>
+<th>Antal</th>
+<th>+</th>
+<th>-</th>
+</tr>
+</thead>
 <tbody id="table"></tbody>
 </table>
 </section>
 
 <section id="import" class="hidden">
 <h2>Import (CSV)</h2>
+<p>CSV med ; som separator</p>
 <input type="file" onchange="importCSV(event)">
+</section>
+
+<section id="labels" class="hidden">
+<h2>QR / Labels</h2>
+<div id="labelsOut"></div>
 </section>
 
 <section id="scan" class="hidden">
@@ -41,52 +56,99 @@ th,td{border:1px solid #ccc;padding:6px}
 <button onclick="scan()">Scan</button>
 </section>
 
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
 <script>
-let wines = JSON.parse(localStorage.getItem("wines")||"[]");
-if(wines.length===0){
- wines=[
-  {id:"VIN001",name:"Château Margaux",type:"Rødvin",qty:10},
-  {id:"VIN002",name:"Chablis Grand Cru",type:"Hvidvin",qty:6}
- ];
- save();
+let wines = JSON.parse(localStorage.getItem("cellarcount_wines") || "[]");
+
+if (wines.length === 0) {
+  wines = [
+    {vinId:"VIN001", name:"Château Margaux", type:"Rødvin", quantity:10},
+    {vinId:"VIN002", name:"Chablis Grand Cru", type:"Hvidvin", quantity:6}
+  ];
+  save();
 }
+
 function show(id){
  document.querySelectorAll("section").forEach(s=>s.classList.add("hidden"));
  document.getElementById(id).classList.remove("hidden");
 }
+
 function render(){
  const tb=document.getElementById("table");
  tb.innerHTML="";
  wines.forEach(w=>{
-  tb.innerHTML+=`<tr>
-   <td>${w.name}</td><td>${w.type}</td><td>${w.qty}</td>
-   <td><button onclick="upd('${w.id}',1)">+</button></td>
-   <td><button onclick="upd('${w.id}',-1)">-</button></td>
-  </tr>`;
+  tb.innerHTML+=`
+   <tr>
+    <td>${w.name}</td>
+    <td>${w.type}</td>
+    <td>${w.quantity}</td>
+    <td><button onclick="upd('${w.vinId}',1)">+</button></td>
+    <td><button onclick="upd('${w.vinId}',-1)">-</button></td>
+   </tr>`;
  });
+ renderLabels();
 }
+
 function upd(id,d){
- const w=wines.find(x=>x.id===id);
+ const w=wines.find(x=>x.vinId===id);
  if(!w)return;
- w.qty=Math.max(0,w.qty+d);
+ w.quantity=Math.max(0,w.quantity+d);
  save();
 }
+
 function scan(){
  const id=document.getElementById("scanInput").value;
- const w=wines.find(x=>x.id===id);
- if(!w)return alert("Ukendt vin");
- w.qty++; save();
+ const w=wines.find(x=>x.vinId===id);
+ if(!w){alert("Ukendt vin");return;}
+ w.quantity++;
+ save();
 }
+
+function renderLabels(){
+ const out=document.getElementById("labelsOut");
+ out.innerHTML="";
+ wines.forEach(w=>{
+  const div=document.createElement("div");
+  QRCode.toCanvas(w.vinId,(err,canvas)=>{
+    if(!err){
+      div.appendChild(canvas);
+      div.innerHTML+=`<div>${w.name} (${w.type})</div>`;
+    }
+  });
+  out.appendChild(div);
+ });
+}
+
 function importCSV(e){
  const file=e.target.files[0];
+ if(!file)return;
  const r=new FileReader();
- r.onload=()=>alert("Import klar (udvides næste trin)");
- r.readAsText(file);
+ r.onload=()=>{
+  const lines=r.result.split(/\r?\n/);
+  const header=lines.shift().split(";");
+  lines.forEach(l=>{
+    if(!l.trim())return;
+    const c=l.split(";");
+    const obj={
+      vinId:c[0],
+      name:c[1],
+      type:c[2],
+      quantity:Number(c[3]||0)
+    };
+    wines.push(obj);
+  });
+  save();
+  alert("Import gennemført");
+ };
+ r.readAsText(file,"utf-8");
 }
+
 function save(){
- localStorage.setItem("wines",JSON.stringify(wines));
+ localStorage.setItem("cellarcount_wines",JSON.stringify(wines));
  render();
 }
+
 render();
 </script>
 
