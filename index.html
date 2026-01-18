@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<title>CellarCount 2026 – Lager</title>
+<style>
+body{font-family:Arial;margin:20px;background:#f6f6f6}
+h1{margin-bottom:5px}
+table{border-collapse:collapse;width:100%;background:#fff}
+th,td{border:1px solid #ccc;padding:6px}
+th{background:#eee}
+input{padding:5px;margin:3px}
+button{padding:6px 10px;margin-top:6px}
+.total{margin-top:15px;font-weight:bold;font-size:16px}
+</style>
+</head>
+<body>
+
+<h1>🍷 CellarCount 2026</h1>
+<p>Stabil lager-kerne (ZIP 1)</p>
+
+<h3>Tilføj vin</h3>
+<input id="name" placeholder="Navn">
+<input id="type" placeholder="Type (Rød/Hvid osv.)">
+<input id="country" placeholder="Land">
+<input id="region" placeholder="Region">
+<input id="reol" placeholder="Reol">
+<input id="hylde" placeholder="Hylde">
+<input id="qty" type="number" placeholder="Antal">
+<input id="price" type="number" step="0.01" placeholder="Indkøbspris">
+<br>
+<button onclick="add()">Tilføj vin</button>
+
+<h3>Lager</h3>
+<table>
+<thead>
+<tr>
+<th>Navn</th><th>Type</th><th>Land</th><th>Region</th>
+<th>Reol</th><th>Hylde</th><th>Antal</th><th>Pris</th>
+</tr>
+</thead>
+<tbody id="rows"></tbody>
+</table>
+
+<div class="total" id="total"></div>
+
+<script>
+let wines = JSON.parse(localStorage.getItem("cellarcount2026")||"[]");
+
+function save(){
+ localStorage.setItem("cellarcount2026",JSON.stringify(wines));
+}
+
+function add(){
+ const w={
+  name:val("name"),
+  type:val("type"),
+  country:val("country"),
+  region:val("region"),
+  reol:val("reol"),
+  hylde:val("hylde"),
+  qty:Number(val("qty")),
+  price:Number(val("price"))
+ };
+ if(!w.name||!w.qty||!w.price) return alert("Navn, antal og pris er påkrævet");
+ wines.push(w);
+ save();
+ render();
+}
+
+function val(id){return document.getElementById(id).value}
+
+function render(){
+ const tb=document.getElementById("rows");
+ tb.innerHTML="";
+ let sum=0;
+ wines.forEach(w=>{
+  sum+=w.qty*w.price;
+  tb.innerHTML+=`<tr>
+  <td>${w.name}</td><td>${w.type}</td><td>${w.country}</td><td>${w.region}</td>
+  <td>${w.reol}</td><td>${w.hylde}</td>
+  <td>${w.qty}</td><td>${w.price.toFixed(2)}</td></tr>`;
+ });
+ document.getElementById("total").innerText=
+  "Samlet lagerværdi: "+sum.toLocaleString("da-DK",{minimumFractionDigits:2})+" kr.";
+}
+
+render();
+</script>
+
+</body>
+</html>
