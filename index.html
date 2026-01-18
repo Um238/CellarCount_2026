@@ -3,14 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CellarCount 2026 – QR & Scanning</title>
+<title>CellarCount 2026</title>
 <style>
 body{font-family:Arial;margin:16px}
-button,input{padding:8px;margin:4px;font-size:15px}
+nav button{margin:4px;padding:8px}
+section{display:none}
+section.active{display:block}
 .label{border:1px solid #000;padding:8px;margin:6px;display:inline-block;width:260px}
-#reader{width:300px;margin-top:10px}
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
@@ -18,24 +20,81 @@ button,input{padding:8px;margin:4px;font-size:15px}
 
 <h1>🍷 CellarCount 2026</h1>
 
-<h2>Labels (QR)</h2>
-<button onclick="renderLabels()">Vis QR-labels</button>
-<div id="labels"></div>
+<nav>
+<button onclick="show('import')">Import</button>
+<button onclick="show('labels')">QR-labels</button>
+<button onclick="show('scan')">Scan</button>
+</nav>
 
-<hr>
+<section id="import" class="active">
+<h2>Import vinlager</h2>
+<input type="file" id="fileInput" accept=".csv,.xlsx">
+<button onclick="startImport()">Importér</button>
+<p id="importStatus"></p>
+</section>
 
+<section id="labels">
+<h2>QR-labels</h2>
+<button onclick="renderLabels()">Vis labels</button>
+<div id="labelsContainer"></div>
+</section>
+
+<section id="scan">
 <h2>Telefon-scanning</h2>
 <button onclick="startScan()">Start scanning</button>
 <button onclick="stopScan()">Stop</button>
 <div id="reader"></div>
-<div id="scanResult"></div>
+<p id="scanResult"></p>
+</section>
 
 <script>
 let wines = JSON.parse(localStorage.getItem("cellarcount2026")||"[]");
 let scanner;
 
+function show(id){
+ document.querySelectorAll("section").forEach(s=>s.classList.remove("active"));
+ document.getElementById(id).classList.add("active");
+}
+
+function startImport(){
+ const file=document.getElementById("fileInput").files[0];
+ if(!file) return alert("Vælg en fil");
+
+ const choice = prompt(
+  "Vælg import-type:\n1 = Overskriv\n2 = Tilføj\n3 = Opdatér priser","1"
+ );
+ if(!choice) return;
+
+ const reader=new FileReader();
+ reader.onload=e=>{
+  let data=new Uint8Array(e.target.result);
+  let wb=XLSX.read(data,{type:'array'});
+  let rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+
+  if(choice==="1") wines=[];
+
+  rows.forEach(r=>{
+   if(!r.vinId) return;
+   let ex=wines.find(w=>w.vinId===r.vinId);
+   if(ex){
+    if(choice==="3") ex.price=Number(r.price);
+   } else if(choice==="1"||choice==="2"){
+    wines.push({
+     vinId:r.vinId,name:r.name,type:r.type,country:r.country,region:r.region,
+     reol:r.reol,hylde:r.hylde,qty:Number(r.qty),price:Number(r.price)
+    });
+   }
+  });
+
+  localStorage.setItem("cellarcount2026",JSON.stringify(wines));
+  document.getElementById("importStatus").innerText =
+   "Import færdig. Vine: "+wines.length;
+ };
+ reader.readAsArrayBuffer(file);
+}
+
 function renderLabels(){
- const d=document.getElementById("labels");
+ const d=document.getElementById("labelsContainer");
  d.innerHTML="";
  wines.forEach(w=>{
   const box=document.createElement("div");
@@ -51,31 +110,19 @@ function renderLabels(){
 }
 
 function startScan(){
- document.getElementById("scanResult").innerText="Starter kamera...";
- scanner = new Html5Qrcode("reader");
- scanner.start(
-  { facingMode: "environment" },
-  { fps: 10, qrbox: 250 },
-  code => {
-    scanner.stop();
-    handleScan(code);
-  }
- );
+ scanner=new Html5Qrcode("reader");
+ scanner.start({facingMode:"environment"},{fps:10,qrbox:250},code=>{
+  scanner.stop();
+  handleScan(code);
+ });
 }
 
-function stopScan(){
- if(scanner) scanner.stop();
-}
+function stopScan(){ if(scanner) scanner.stop(); }
 
 function handleScan(vinId){
- const wine = wines.find(w=>w.vinId===vinId);
- if(!wine){
-  document.getElementById("scanResult").innerText =
-   "❌ Ukendt vin – QR matcher ikke lager";
-  return;
- }
+ const w=wines.find(x=>x.vinId===vinId);
  document.getElementById("scanResult").innerText =
-  "✔ Fundet: "+wine.name+" ("+wine.qty+" stk)";
+  w ? "✔ "+w.name+" ("+w.qty+" stk)" : "❌ Ukendt vin";
 }
 </script>
 
