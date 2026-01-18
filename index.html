@@ -2,107 +2,76 @@
 <html lang="da">
 <head>
 <meta charset="UTF-8">
-<title>CellarCount 2026 – Import</title>
+<title>CellarCount 2026 – QR & Labels</title>
 <style>
 body{font-family:Arial;margin:20px;background:#f6f6f6}
 table{border-collapse:collapse;width:100%;background:#fff}
 th,td{border:1px solid #ccc;padding:6px}
 th{background:#eee}
-input,button{padding:6px;margin:4px}
-.total{margin-top:15px;font-weight:bold}
+input,button,select{padding:6px;margin:4px}
+.label{border:1px solid #000;padding:8px;margin:6px;width:260px;display:inline-block}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head>
 <body>
 
 <h1>🍷 CellarCount 2026</h1>
-<p>ZIP 2 – CSV-import med valg</p>
+<p>ZIP 3 – QR-koder & Labels</p>
 
-<input type="file" id="csv" accept=".csv">
-<button onclick="importCSV()">Importer CSV</button>
+<label>Reol:
+<input id="filterReol" placeholder="fx A"></label>
+<label>Hylde:
+<input id="filterHylde" placeholder="fx 1 (valgfri)"></label>
+<button onclick="renderLabels()">Vis labels</button>
 
-<table>
-<thead>
-<tr>
-<th>Navn</th><th>Type</th><th>Land</th><th>Region</th>
-<th>Reol</th><th>Hylde</th><th>Antal</th><th>Pris</th>
-</tr>
-</thead>
-<tbody id="rows"></tbody>
-</table>
-
-<div class="total" id="total"></div>
+<h3>Labels</h3>
+<div id="labels"></div>
 
 <script>
 let wines = JSON.parse(localStorage.getItem("cellarcount2026")||"[]");
 
-function save(){localStorage.setItem("cellarcount2026",JSON.stringify(wines));}
+function renderLabels(){
+ const reol=document.getElementById("filterReol").value;
+ const hylde=document.getElementById("filterHylde").value;
+ const d=document.getElementById("labels");
+ d.innerHTML="";
 
-function render(){
- const tb=document.getElementById("rows");
- tb.innerHTML="";
- let sum=0;
- wines.forEach(w=>{
-  sum+=w.qty*w.price;
-  tb.innerHTML+=`<tr>
-   <td>${w.name}</td><td>${w.type}</td><td>${w.country}</td><td>${w.region}</td>
-   <td>${w.reol}</td><td>${w.hylde}</td>
-   <td>${w.qty}</td><td>${w.price.toFixed(2)}</td>
-  </tr>`;
- });
- document.getElementById("total").innerText =
-  "Samlet lagerværdi: "+sum.toLocaleString("da-DK",{minimumFractionDigits:2})+" kr.";
-}
-
-function importCSV(){
- const f=document.getElementById("csv").files[0];
- if(!f) return;
-
- let mode = prompt(
-  "Vælg import-type:\n1 = Overskriv hele lageret\n2 = Tilføj nye vine\n3 = Opdatér kun priser",
-  "1"
+ const filtered = wines.filter(w=>
+  (!reol || w.reol===reol) &&
+  (!hylde || w.hylde===hylde)
  );
- if(!["1","2","3"].includes(mode)) return alert("Import annulleret");
 
- const r=new FileReader();
- r.onload=e=>{
-  const lines=e.target.result.split(/\r?\n/).filter(l=>l.trim());
-  const h=lines.shift().split(";");
-  let added=0,updated=0;
+ if(filtered.length===0){
+  d.innerHTML="Ingen vine fundet";
+  return;
+ }
 
-  if(mode==="1") wines=[];
+ filtered.forEach(w=>{
+  const box=document.createElement("div");
+  box.className="label";
 
-  lines.forEach(l=>{
-   const c=l.split(";");
-   const o={};
-   h.forEach((k,i)=>o[k]=c[i]);
+  const title=document.createElement("strong");
+  title.innerText=w.name;
+  box.appendChild(title);
+  box.appendChild(document.createElement("br"));
 
-   o.qty=Number(o.qty||o.quantity||0);
-   o.price=Number(o.price||0);
-   o.vinId=o.vinId||crypto.randomUUID();
+  box.appendChild(document.createTextNode(
+   w.type+" – "+w.country+" "+w.region
+  ));
+  box.appendChild(document.createElement("br"));
 
-   const existing = wines.find(w=>w.vinId===o.vinId);
+  box.appendChild(document.createTextNode(
+   "Reol "+w.reol+" · Hylde "+w.hylde
+  ));
+  box.appendChild(document.createElement("br"));
 
-   if(!existing){
-    if(mode!=="3"){
-     wines.push(o);
-     added++;
-    }
-   } else {
-    if(mode==="3"){
-     existing.price=o.price;
-     updated++;
-    }
-   }
-  });
+  const canvas=document.createElement("canvas");
+  QRCode.toCanvas(canvas,w.vinId);
+  box.appendChild(canvas);
 
-  save();
-  render();
-  alert("Import færdig\nTilføjet: "+added+"\nOpdateret: "+updated);
- };
- r.readAsText(f,"UTF-8");
+  d.appendChild(box);
+ });
 }
-
-render();
 </script>
 </body>
 </html>
