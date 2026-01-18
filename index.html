@@ -2,93 +2,57 @@
 <html lang="da">
 <head>
 <meta charset="UTF-8">
-<title>CellarCount 2026</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CellarCount 2026 – Telefon-scanning</title>
 <style>
-body{font-family:Arial;margin:20px}
-button,input{padding:6px;margin:4px}
-.label{border:1px solid #000;padding:8px;margin:6px;display:inline-block;width:260px}
+body{font-family:Arial;margin:16px}
+button{padding:10px;margin:6px;font-size:16px}
+#result{margin-top:12px;font-weight:bold}
 </style>
-
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
 
-<h1>🍷 CellarCount 2026</h1>
+<h1>📱 CellarCount 2026</h1>
+<p>Scan QR-kode for at finde vin</p>
 
-<input type="file" id="fileInput" accept=".csv,.xlsx">
-<button onclick="startImport()">Importér</button>
+<button onclick="startScan()">Start scanning</button>
+<button onclick="stopScan()">Stop</button>
 
-<div id="labels"></div>
+<div id="reader" style="width:300px"></div>
+<div id="result"></div>
 
 <script>
 let wines = JSON.parse(localStorage.getItem("cellarcount2026")||"[]");
+let scanner;
 
-function startImport(){
- const file=document.getElementById("fileInput").files[0];
- if(!file) return alert("Vælg en fil");
-
- const choice = prompt(
-  "Vælg import-type:\n"+
-  "1 = Overskriv hele lageret\n"+
-  "2 = Tilføj nye vine\n"+
-  "3 = Opdatér kun priser",
-  "1"
+function startScan(){
+ document.getElementById("result").innerText="Starter kamera...";
+ scanner = new Html5Qrcode("reader");
+ scanner.start(
+  { facingMode: "environment" },
+  { fps: 10, qrbox: 250 },
+  code => {
+    scanner.stop();
+    handleScan(code);
+  }
  );
-
- if(!choice) return;
-
- const reader = new FileReader();
- reader.onload = e => {
-  let data = new Uint8Array(e.target.result);
-  let wb = XLSX.read(data,{type:'array'});
-  let rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-
-  if(choice==="1") wines=[];
-
-  rows.forEach(r=>{
-   if(!r.vinId) return;
-   let ex = wines.find(w=>w.vinId===r.vinId);
-   if(ex){
-    if(choice==="3") ex.price = Number(r.price);
-   } else if(choice==="1"||choice==="2"){
-    wines.push({
-     vinId:r.vinId,
-     name:r.name,
-     type:r.type,
-     country:r.country,
-     region:r.region,
-     reol:r.reol,
-     hylde:r.hylde,
-     qty:Number(r.qty),
-     price:Number(r.price)
-    });
-   }
-  });
-
-  localStorage.setItem("cellarcount2026",JSON.stringify(wines));
-  alert("Import gennemført. Vine i alt: "+wines.length);
-  render();
- };
- reader.readAsArrayBuffer(file);
 }
 
-function render(){
- const d=document.getElementById("labels");
- d.innerHTML="";
- wines.forEach(w=>{
-  const box=document.createElement("div");
-  box.className="label";
-  box.innerHTML=`<strong>${w.name}</strong><br>
-  ${w.type} – ${w.country}<br>
-  Reol ${w.reol} · Hylde ${w.hylde}<br>`;
-  const c=document.createElement("canvas");
-  QRCode.toCanvas(c,w.vinId);
-  box.appendChild(c);
-  d.appendChild(box);
- });
+function stopScan(){
+ if(scanner) scanner.stop();
 }
-render();
+
+function handleScan(vinId){
+ const wine = wines.find(w=>w.vinId===vinId);
+ if(!wine){
+  document.getElementById("result").innerText =
+   "❌ Ukendt vin – ikke i lager";
+  return;
+ }
+ document.getElementById("result").innerText =
+  "✔ Fundet: "+wine.name+" ("+wine.qty+" stk)";
+}
 </script>
 
 </body>
