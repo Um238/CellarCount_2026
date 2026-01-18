@@ -3,31 +3,55 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CellarCount 2026 – Telefon-scanning</title>
+<title>CellarCount 2026 – QR & Scanning</title>
 <style>
 body{font-family:Arial;margin:16px}
-button{padding:10px;margin:6px;font-size:16px}
-#result{margin-top:12px;font-weight:bold}
+button,input{padding:8px;margin:4px;font-size:15px}
+.label{border:1px solid #000;padding:8px;margin:6px;display:inline-block;width:260px}
+#reader{width:300px;margin-top:10px}
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
 
-<h1>📱 CellarCount 2026</h1>
-<p>Scan QR-kode for at finde vin</p>
+<h1>🍷 CellarCount 2026</h1>
 
+<h2>Labels (QR)</h2>
+<button onclick="renderLabels()">Vis QR-labels</button>
+<div id="labels"></div>
+
+<hr>
+
+<h2>Telefon-scanning</h2>
 <button onclick="startScan()">Start scanning</button>
 <button onclick="stopScan()">Stop</button>
-
-<div id="reader" style="width:300px"></div>
-<div id="result"></div>
+<div id="reader"></div>
+<div id="scanResult"></div>
 
 <script>
 let wines = JSON.parse(localStorage.getItem("cellarcount2026")||"[]");
 let scanner;
 
+function renderLabels(){
+ const d=document.getElementById("labels");
+ d.innerHTML="";
+ wines.forEach(w=>{
+  const box=document.createElement("div");
+  box.className="label";
+  box.innerHTML=`<strong>${w.name}</strong><br>
+  ${w.type} – ${w.country}<br>
+  Reol ${w.reol} · Hylde ${w.hylde}<br>`;
+  const c=document.createElement("canvas");
+  QRCode.toCanvas(c,w.vinId);
+  box.appendChild(c);
+  d.appendChild(box);
+ });
+}
+
 function startScan(){
- document.getElementById("result").innerText="Starter kamera...";
+ document.getElementById("scanResult").innerText="Starter kamera...";
  scanner = new Html5Qrcode("reader");
  scanner.start(
   { facingMode: "environment" },
@@ -46,11 +70,11 @@ function stopScan(){
 function handleScan(vinId){
  const wine = wines.find(w=>w.vinId===vinId);
  if(!wine){
-  document.getElementById("result").innerText =
-   "❌ Ukendt vin – ikke i lager";
+  document.getElementById("scanResult").innerText =
+   "❌ Ukendt vin – QR matcher ikke lager";
   return;
  }
- document.getElementById("result").innerText =
+ document.getElementById("scanResult").innerText =
   "✔ Fundet: "+wine.name+" ("+wine.qty+" stk)";
 }
 </script>
