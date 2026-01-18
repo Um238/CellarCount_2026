@@ -6,31 +6,89 @@
 <title>CellarCount 2026</title>
 <style>
 body{font-family:Arial;margin:20px}
-table{border-collapse:collapse;width:100%}
+nav button{margin-right:6px}
+table{border-collapse:collapse;width:100%;margin-top:10px}
 th,td{border:1px solid #ccc;padding:6px}
-button{padding:4px 8px}
+.hidden{display:none}
 </style>
 </head>
 <body>
 
 <h1>🍷 CellarCount 2026</h1>
 
+<nav>
+<button onclick="show('lager')">Lager</button>
+<button onclick="show('import')">Import</button>
+<button onclick="show('scan')">Scan</button>
+</nav>
+
+<section id="lager">
 <h2>Lager</h2>
 <table>
-<thead>
-<tr>
-<th>Navn</th>
-<th>Type</th>
-<th>Antal</th>
-<th>+</th>
-<th>-</th>
-</tr>
-</thead>
-<tbody id="wineTable"></tbody>
+<thead><tr><th>Navn</th><th>Type</th><th>Antal</th><th>+</th><th>-</th></tr></thead>
+<tbody id="table"></tbody>
 </table>
+</section>
 
-<script src="js/data.js"></script>
-<script src="js/count.js"></script>
+<section id="import" class="hidden">
+<h2>Import (CSV)</h2>
+<input type="file" onchange="importCSV(event)">
+</section>
+
+<section id="scan" class="hidden">
+<h2>Scan (VIN-ID)</h2>
+<input id="scanInput">
+<button onclick="scan()">Scan</button>
+</section>
+
+<script>
+let wines = JSON.parse(localStorage.getItem("wines")||"[]");
+if(wines.length===0){
+ wines=[
+  {id:"VIN001",name:"Château Margaux",type:"Rødvin",qty:10},
+  {id:"VIN002",name:"Chablis Grand Cru",type:"Hvidvin",qty:6}
+ ];
+ save();
+}
+function show(id){
+ document.querySelectorAll("section").forEach(s=>s.classList.add("hidden"));
+ document.getElementById(id).classList.remove("hidden");
+}
+function render(){
+ const tb=document.getElementById("table");
+ tb.innerHTML="";
+ wines.forEach(w=>{
+  tb.innerHTML+=`<tr>
+   <td>${w.name}</td><td>${w.type}</td><td>${w.qty}</td>
+   <td><button onclick="upd('${w.id}',1)">+</button></td>
+   <td><button onclick="upd('${w.id}',-1)">-</button></td>
+  </tr>`;
+ });
+}
+function upd(id,d){
+ const w=wines.find(x=>x.id===id);
+ if(!w)return;
+ w.qty=Math.max(0,w.qty+d);
+ save();
+}
+function scan(){
+ const id=document.getElementById("scanInput").value;
+ const w=wines.find(x=>x.id===id);
+ if(!w)return alert("Ukendt vin");
+ w.qty++; save();
+}
+function importCSV(e){
+ const file=e.target.files[0];
+ const r=new FileReader();
+ r.onload=()=>alert("Import klar (udvides næste trin)");
+ r.readAsText(file);
+}
+function save(){
+ localStorage.setItem("wines",JSON.stringify(wines));
+ render();
+}
+render();
+</script>
 
 </body>
 </html>
