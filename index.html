@@ -2,12 +2,73 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-  <meta charset="UTF-8">
-  <title>CellarCount 2026 – Optælling</title>
+<meta charset="UTF-8">
+<title>CellarCount 2026</title>
+<style>
+body{font-family:Arial;margin:20px}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid #ccc;padding:6px}
+button{padding:6px;margin:4px}
+</style>
 </head>
 <body>
-  <h1>CellarCount 2026</h1>
-  <p>Fase B – Trin 1: Optælling via scanning</p>
-  <p>Denne ZIP indeholder den opdaterede optællingslogik.</p>
+
+<h1>🍷 CellarCount 2026</h1>
+
+<h2>Lager</h2>
+<table id="table">
+<thead><tr><th>Navn</th><th>Type</th><th>Antal</th><th>+</th><th>-</th></tr></thead>
+<tbody></tbody>
+</table>
+
+<h2>Scanner (simuleret)</h2>
+<input id="scanInput" placeholder="Indtast VIN-ID">
+<button onclick="scan()">Scan</button>
+
+<script>
+let wines = JSON.parse(localStorage.getItem("wines")||"[]");
+
+if(wines.length===0){
+  wines=[
+    {id:"VIN1",name:"Château Margaux",type:"Rødvin",qty:12},
+    {id:"VIN2",name:"Chablis Grand Cru",type:"Hvidvin",qty:8}
+  ];
+  localStorage.setItem("wines",JSON.stringify(wines));
+}
+
+function render(){
+  const tb=document.querySelector("tbody");
+  tb.innerHTML="";
+  wines.forEach(w=>{
+    tb.innerHTML+=`
+      <tr>
+        <td>${w.name}</td>
+        <td>${w.type}</td>
+        <td>${w.qty}</td>
+        <td><button onclick="update('${w.id}',1)">+</button></td>
+        <td><button onclick="update('${w.id}',-1)">-</button></td>
+      </tr>`;
+  });
+}
+
+function update(id,delta){
+  const w=wines.find(x=>x.id===id);
+  if(!w)return;
+  w.qty+=delta;
+  localStorage.setItem("wines",JSON.stringify(wines));
+  render();
+}
+
+function scan(){
+  const id=document.getElementById("scanInput").value;
+  const w=wines.find(x=>x.id===id);
+  if(!w){alert("Ukendt vin");return;}
+  w.qty++;
+  localStorage.setItem("wines",JSON.stringify(wines));
+  render();
+}
+
+render();
+</script>
 </body>
 </html>
