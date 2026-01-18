@@ -2,45 +2,52 @@
 <html lang="da">
 <head>
 <meta charset="UTF-8">
-<title>CellarCount 2026 – Rapporter & Print</title>
+<title>CellarCount 2026</title>
 <style>
-body{font-family:Arial;margin:20px;background:#f6f6f6}
-table{border-collapse:collapse;width:100%;background:#fff}
+body{font-family:Arial;margin:20px}
+table{border-collapse:collapse;width:100%}
 th,td{border:1px solid #ccc;padding:6px}
 th{background:#eee}
-button{padding:6px;margin:6px}
-.label{border:1px solid #000;padding:8px;margin:6px;width:260px;display:inline-block}
-@media print {
-  body * { visibility: hidden; }
-  #labels, #labels * { visibility: visible; }
-  #labels { position: absolute; left: 0; top: 0; }
-}
+.label{border:1px solid #000;padding:8px;margin:6px;display:inline-block;width:260px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
 <h1>🍷 CellarCount 2026</h1>
 
-<button onclick="printLabels()">🖨️ Print labels</button>
-<button onclick="generatePDF()">📄 PDF rapport</button>
+<input type="file" id="fileInput">
+<button onclick="importCSV()">Importér CSV</button>
 
-<h2>Samlet lagerværdi</h2>
-<div id="total"></div>
-
-<h2>Labels</h2>
 <div id="labels"></div>
 
 <script>
 let wines = JSON.parse(localStorage.getItem("cellarcount2026")||"[]");
 
+function importCSV(){
+ const file=document.getElementById("fileInput").files[0];
+ if(!file) return alert("Vælg fil");
+ const reader=new FileReader();
+ reader.onload=e=>{
+  const rows=e.target.result.split(/\r?\n/).slice(1);
+  rows.forEach(r=>{
+   const c=r.split(";");
+   if(c.length<9) return;
+   wines.push({
+    vinId:c[0],name:c[1],type:c[2],country:c[3],region:c[4],
+    reol:c[5],hylde:c[6],qty:Number(c[7]),price:Number(c[8])
+   });
+  });
+  localStorage.setItem("cellarcount2026",JSON.stringify(wines));
+  render();
+ };
+ reader.readAsText(file,"UTF-8");
+}
+
 function render(){
  const d=document.getElementById("labels");
  d.innerHTML="";
- let sum=0;
  wines.forEach(w=>{
-  sum += (w.qty||0)*(w.price||0);
   const box=document.createElement("div");
   box.className="label";
   box.innerHTML=`<strong>${w.name}</strong><br>
@@ -51,25 +58,9 @@ function render(){
   box.appendChild(c);
   d.appendChild(box);
  });
- document.getElementById("total").innerText =
-  sum.toLocaleString("da-DK",{style:"currency",currency:"DKK"});
 }
-
-function printLabels(){ window.print(); }
-
-function generatePDF(){
- const { jsPDF } = window.jspdf;
- const pdf = new jsPDF();
- let y=10;
- wines.forEach(w=>{
-  pdf.text(`${w.name} – ${w.qty} stk – ${w.price} kr.`,10,y);
-  y+=8;
-  if(y>280){ pdf.addPage(); y=10; }
- });
- pdf.save("CellarCount_2026_Rapport.pdf");
-}
-
 render();
 </script>
+
 </body>
 </html>
