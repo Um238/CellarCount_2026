@@ -2,36 +2,24 @@
 <html lang="da">
 <head>
 <meta charset="UTF-8">
-<title>CellarCount 2026 – Lager</title>
+<title>CellarCount 2026 – Import</title>
 <style>
 body{font-family:Arial;margin:20px;background:#f6f6f6}
-h1{margin-bottom:5px}
 table{border-collapse:collapse;width:100%;background:#fff}
 th,td{border:1px solid #ccc;padding:6px}
 th{background:#eee}
-input{padding:5px;margin:3px}
-button{padding:6px 10px;margin-top:6px}
-.total{margin-top:15px;font-weight:bold;font-size:16px}
+input,button{padding:6px;margin:4px}
+.total{margin-top:15px;font-weight:bold}
 </style>
 </head>
 <body>
 
 <h1>🍷 CellarCount 2026</h1>
-<p>Stabil lager-kerne (ZIP 1)</p>
+<p>ZIP 2 – CSV-import med valg</p>
 
-<h3>Tilføj vin</h3>
-<input id="name" placeholder="Navn">
-<input id="type" placeholder="Type (Rød/Hvid osv.)">
-<input id="country" placeholder="Land">
-<input id="region" placeholder="Region">
-<input id="reol" placeholder="Reol">
-<input id="hylde" placeholder="Hylde">
-<input id="qty" type="number" placeholder="Antal">
-<input id="price" type="number" step="0.01" placeholder="Indkøbspris">
-<br>
-<button onclick="add()">Tilføj vin</button>
+<input type="file" id="csv" accept=".csv">
+<button onclick="importCSV()">Importer CSV</button>
 
-<h3>Lager</h3>
 <table>
 <thead>
 <tr>
@@ -47,28 +35,7 @@ button{padding:6px 10px;margin-top:6px}
 <script>
 let wines = JSON.parse(localStorage.getItem("cellarcount2026")||"[]");
 
-function save(){
- localStorage.setItem("cellarcount2026",JSON.stringify(wines));
-}
-
-function add(){
- const w={
-  name:val("name"),
-  type:val("type"),
-  country:val("country"),
-  region:val("region"),
-  reol:val("reol"),
-  hylde:val("hylde"),
-  qty:Number(val("qty")),
-  price:Number(val("price"))
- };
- if(!w.name||!w.qty||!w.price) return alert("Navn, antal og pris er påkrævet");
- wines.push(w);
- save();
- render();
-}
-
-function val(id){return document.getElementById(id).value}
+function save(){localStorage.setItem("cellarcount2026",JSON.stringify(wines));}
 
 function render(){
  const tb=document.getElementById("rows");
@@ -77,16 +44,65 @@ function render(){
  wines.forEach(w=>{
   sum+=w.qty*w.price;
   tb.innerHTML+=`<tr>
-  <td>${w.name}</td><td>${w.type}</td><td>${w.country}</td><td>${w.region}</td>
-  <td>${w.reol}</td><td>${w.hylde}</td>
-  <td>${w.qty}</td><td>${w.price.toFixed(2)}</td></tr>`;
+   <td>${w.name}</td><td>${w.type}</td><td>${w.country}</td><td>${w.region}</td>
+   <td>${w.reol}</td><td>${w.hylde}</td>
+   <td>${w.qty}</td><td>${w.price.toFixed(2)}</td>
+  </tr>`;
  });
- document.getElementById("total").innerText=
+ document.getElementById("total").innerText =
   "Samlet lagerværdi: "+sum.toLocaleString("da-DK",{minimumFractionDigits:2})+" kr.";
+}
+
+function importCSV(){
+ const f=document.getElementById("csv").files[0];
+ if(!f) return;
+
+ let mode = prompt(
+  "Vælg import-type:\n1 = Overskriv hele lageret\n2 = Tilføj nye vine\n3 = Opdatér kun priser",
+  "1"
+ );
+ if(!["1","2","3"].includes(mode)) return alert("Import annulleret");
+
+ const r=new FileReader();
+ r.onload=e=>{
+  const lines=e.target.result.split(/\r?\n/).filter(l=>l.trim());
+  const h=lines.shift().split(";");
+  let added=0,updated=0;
+
+  if(mode==="1") wines=[];
+
+  lines.forEach(l=>{
+   const c=l.split(";");
+   const o={};
+   h.forEach((k,i)=>o[k]=c[i]);
+
+   o.qty=Number(o.qty||o.quantity||0);
+   o.price=Number(o.price||0);
+   o.vinId=o.vinId||crypto.randomUUID();
+
+   const existing = wines.find(w=>w.vinId===o.vinId);
+
+   if(!existing){
+    if(mode!=="3"){
+     wines.push(o);
+     added++;
+    }
+   } else {
+    if(mode==="3"){
+     existing.price=o.price;
+     updated++;
+    }
+   }
+  });
+
+  save();
+  render();
+  alert("Import færdig\nTilføjet: "+added+"\nOpdateret: "+updated);
+ };
+ r.readAsText(f,"UTF-8");
 }
 
 render();
 </script>
-
 </body>
 </html>
