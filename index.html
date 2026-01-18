@@ -2,76 +2,74 @@
 <html lang="da">
 <head>
 <meta charset="UTF-8">
-<title>CellarCount 2026 – QR & Labels</title>
+<title>CellarCount 2026 – Rapporter & Print</title>
 <style>
 body{font-family:Arial;margin:20px;background:#f6f6f6}
 table{border-collapse:collapse;width:100%;background:#fff}
 th,td{border:1px solid #ccc;padding:6px}
 th{background:#eee}
-input,button,select{padding:6px;margin:4px}
+button{padding:6px;margin:6px}
 .label{border:1px solid #000;padding:8px;margin:6px;width:260px;display:inline-block}
+@media print {
+  body * { visibility: hidden; }
+  #labels, #labels * { visibility: visible; }
+  #labels { position: absolute; left: 0; top: 0; }
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
 <h1>🍷 CellarCount 2026</h1>
-<p>ZIP 3 – QR-koder & Labels</p>
 
-<label>Reol:
-<input id="filterReol" placeholder="fx A"></label>
-<label>Hylde:
-<input id="filterHylde" placeholder="fx 1 (valgfri)"></label>
-<button onclick="renderLabels()">Vis labels</button>
+<button onclick="printLabels()">🖨️ Print labels</button>
+<button onclick="generatePDF()">📄 PDF rapport</button>
 
-<h3>Labels</h3>
+<h2>Samlet lagerværdi</h2>
+<div id="total"></div>
+
+<h2>Labels</h2>
 <div id="labels"></div>
 
 <script>
 let wines = JSON.parse(localStorage.getItem("cellarcount2026")||"[]");
 
-function renderLabels(){
- const reol=document.getElementById("filterReol").value;
- const hylde=document.getElementById("filterHylde").value;
+function render(){
  const d=document.getElementById("labels");
  d.innerHTML="";
-
- const filtered = wines.filter(w=>
-  (!reol || w.reol===reol) &&
-  (!hylde || w.hylde===hylde)
- );
-
- if(filtered.length===0){
-  d.innerHTML="Ingen vine fundet";
-  return;
- }
-
- filtered.forEach(w=>{
+ let sum=0;
+ wines.forEach(w=>{
+  sum += (w.qty||0)*(w.price||0);
   const box=document.createElement("div");
   box.className="label";
-
-  const title=document.createElement("strong");
-  title.innerText=w.name;
-  box.appendChild(title);
-  box.appendChild(document.createElement("br"));
-
-  box.appendChild(document.createTextNode(
-   w.type+" – "+w.country+" "+w.region
-  ));
-  box.appendChild(document.createElement("br"));
-
-  box.appendChild(document.createTextNode(
-   "Reol "+w.reol+" · Hylde "+w.hylde
-  ));
-  box.appendChild(document.createElement("br"));
-
-  const canvas=document.createElement("canvas");
-  QRCode.toCanvas(canvas,w.vinId);
-  box.appendChild(canvas);
-
+  box.innerHTML=`<strong>${w.name}</strong><br>
+  ${w.type} – ${w.country}<br>
+  Reol ${w.reol} · Hylde ${w.hylde}<br>`;
+  const c=document.createElement("canvas");
+  QRCode.toCanvas(c,w.vinId);
+  box.appendChild(c);
   d.appendChild(box);
  });
+ document.getElementById("total").innerText =
+  sum.toLocaleString("da-DK",{style:"currency",currency:"DKK"});
 }
+
+function printLabels(){ window.print(); }
+
+function generatePDF(){
+ const { jsPDF } = window.jspdf;
+ const pdf = new jsPDF();
+ let y=10;
+ wines.forEach(w=>{
+  pdf.text(`${w.name} – ${w.qty} stk – ${w.price} kr.`,10,y);
+  y+=8;
+  if(y>280){ pdf.addPage(); y=10; }
+ });
+ pdf.save("CellarCount_2026_Rapport.pdf");
+}
+
+render();
 </script>
 </body>
 </html>
